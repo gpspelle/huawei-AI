@@ -19,6 +19,7 @@ _NB_CHANNELS = 32  # C100
 # (1 - _cv_valid_rate) will be part of each fold training set.
 _train_campaigns = [1, 2]
 _test_campaigns = [3, 4]
+
 _test_rate = 0.8
 _cv_valid_rate = 0.5
 
