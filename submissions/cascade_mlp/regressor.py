@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch.nn.functional import relu
 from torch.nn.utils.rnn import pad_sequence
 
@@ -111,14 +112,18 @@ class MLP(torch.nn.Module):
 
     def __init__(self, feat_size):
         super(MLP, self).__init__()
+        self.drop_layer = nn.Dropout(p=0.5)
         # Definition of the modules of the model
         # Two fully connected layers
-        self.fc0 = torch.nn.Linear(32 + feat_size, 128)
-        self.fc1 = torch.nn.Linear(128, 32)
+        self.fc0 = torch.nn.Linear(32 + feat_size, 256)
+        self.fc1 = torch.nn.Linear(256, 256)
+        self.fc2 = torch.nn.Linear(256, 256)
+        self.fc3 = torch.nn.Linear(256, 32)
 
     def forward(self, x):
         # Compute the output of the model using a tanh activation function
-        p_out = self.fc1(torch.tanh(self.fc0(x)))
+        p_out = self.drop_layer(self.fc1(relu(self.fc0(x))))
+        p_out = self.fc3(relu(self.fc2(p_out)))
         return p_out
 
 

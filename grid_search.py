@@ -1,11 +1,38 @@
 import numpy as np
+from sklearn.metrics import make_scorer
+import rampwf as rw
 from sklearn import multioutput
 import xgboost as xgb
+from matplotlib import pyplot
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model.base import BaseEstimator
+from problem import get_train_data
 
-class Regressor():
-    def _init_(self):
-        super()._init_()
+def EM99(y_true, y_pred):
+    precision=3
+    quant=0.99
+    eps=1e-8
+
+    if (y_pred < 0).any():
+        return float('inf')
+
+    ratio_err = np.array([(p + eps) / t for y_hat, y in zip(y_pred, y_true)
+                        for p, t in zip(y_hat, y) if t != 0])
+    # sorted absolute value of mw2dB ratio err
+    score = np.percentile(np.abs(10 * np.log10(ratio_err)), 100 * quant)
+    return score
+
+
+class Regressor(BaseEstimator):
+
+    def __init__(self, max_depth=2, n_estimators=60, learning_rate=0.1):
+        super().__init__()
         self.model = None
+
+        self.max_depth = max_depth
+        self.n_estimators = n_estimators
+        self.learning_rate = learning_rate
+        self.model = multioutput.MultiOutputRegressor(xgb.XGBRegressor(n_estimators=self.n_estimators, max_depth=self.max_depth, learning_rate=self.learning_rate))
 
     def fit(self, X, y):
         # Get data and create train data loaders
@@ -35,9 +62,8 @@ class Regressor():
             X_56.append(np.asarray(real_inp))
 
         X_56 = np.asarray(X_56)
-
-        self.model = multioutput.MultiOutputRegressor(xgb.XGBRegressor(learning_rate=0.05, max_depth=6, n_estimators=1000, reg_lambda=5, gamma=0.01)).fit(X_56, y, eval_metric="logloss")
-
+        self.model.fit(X_56, y, eval_metric="logloss", verbose=True)
+        
     def predict(self, X):
         X_56 = []
         for sample in X:
@@ -70,3 +96,34 @@ class Regressor():
         preds = self.model.predict(X_56)
         preds = preds * (preds > 0)
         return preds
+
+
+parameters = [{
+    'max_depth': [3, 4, 5, 6, 7],
+    'n_estimators': [50, 250, 500, 1000],
+    'learning_rate': [0.03, 0.05, 0.08, 0.1]
+}]
+EM99_score = make_scorer(EM99, greater_is_better=False)
+
+'''
+parameters = [{
+    'max_depth': [3, 4],
+    'learning_rate': [0.03, 0.05]
+}]
+'''
+
+grid_search = GridSearchCV(
+    estimator=Regressor(),
+    param_grid=parameters,
+    scoring = EM99_score,
+    n_jobs = 8,
+    cv = 4,
+    verbose=True
+)
+
+x_train, y_train = get_train_data()
+
+grid_search.fit(x_train, y_train)
+print(grid_search.best_score_)
+print(grid_search.best_params_)
+

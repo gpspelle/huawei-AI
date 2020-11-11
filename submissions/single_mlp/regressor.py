@@ -9,12 +9,18 @@ class Regressor(torch.nn.Module):
         super(Regressor, self).__init__()
         # Definition of the modules of the model
         # Two fully connected layers
-        self.fc0 = torch.nn.Linear(32, 128)
-        self.fc1 = torch.nn.Linear(128, 32)
+        self.fc0 = torch.nn.Linear(32, 256)
+        self.fc1 = torch.nn.Linear(256, 512)
+        self.fc2 = torch.nn.Linear(512, 512)
+        self.fc3 = torch.nn.Linear(512, 256)
+        self.fc4 = torch.nn.Linear(256, 128)
+        self.fc5 = torch.nn.Linear(128, 32)
 
     def forward(self, p_in):
         # Compute the output of the model using a tanh activation function
-        p_out = self.fc1(torch.tanh(self.fc0(p_in)))
+        p_out = self.fc1(relu(self.fc0(p_in)))
+        p_out = self.fc3(relu(self.fc2(p_out)))
+        p_out = self.fc5(relu(self.fc4(p_out)))
         # Return positive values when evaluating the model
         return p_out if self.training else relu(p_out)
 
